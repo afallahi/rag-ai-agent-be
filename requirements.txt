@@ -4,9 +4,11 @@ langchain==0.3.26
 langchain-ollama==0.3.3
 sentence-transformers==4.1.0
 python-dotenv
+boto3>=1.28.0
 
 streamlit
 
 
-# Note: FAISS must be installed separately via conda:
-# conda install -c conda-forge faiss-cpu
+# Note: FAISS must be installed separately:
+# Ubuntu: pip install faiss-cpu
+# Windows: conda install -c conda-forge faiss-cpu

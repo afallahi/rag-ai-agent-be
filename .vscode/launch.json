@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
       {
-        "name": "Run main.py",
+        "name": "Run pipeline.py",
         "type": "debugpy",
         "request": "launch",
-        "program": "${workspaceFolder}/main.py",
+        "program": "${workspaceFolder}/pipeline.py",
         "console": "integratedTerminal"
       },
       {
@@ -17,7 +17,15 @@
           "tests"
         ],
         "console": "integratedTerminal"
-      }
-    ]
-  }
+      },
+      {
+      "name": "Run chat_app.py (Streamlit)",
+      "type": "python",
+      "request": "launch",
+      "module": "streamlit",
+      "args": ["run", "chat_app.py"],
+      "console": "integratedTerminal"
+    }
+  ]
+}
   

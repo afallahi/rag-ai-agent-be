@@ -1,6 +1,7 @@
 """RAG Project Main Module"""
 
 import os
+import time
 import logging
 import argparse
 from main.extractor import pdf_extractor
@@ -8,9 +9,9 @@ from main.chunker import text_chunker
 from main.embedder import embedder
 from main.vector_store import faiss_indexer
 from main.config import Config
-from main.llm.ollama_client import OllamaClient
 from main.intent_detector import IntentDetector
 from main.logger_config import setup_logging
+from main.llm.factory import get_llm_client
 
 
 MAX_HISTORY_LENGTH = 10
@@ -138,9 +139,10 @@ def build_global_index(force: bool = False):
     return index
 
 
-def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]], intent_detector: IntentDetector):
+def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]], intent_detector: IntentDetector, embedding_model):
     """Query global index and generate a response using LLM."""
 
+    start = time.time()
     intent = intent_detector.detect(query_text)
 
 
@@ -159,7 +161,9 @@ def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]
         return
     else:
         # Use the RAG pipeline
-        top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedder.get_model(), k=4)
+        t1 = time.time()
+        top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedding_model, k=4)
+        print(f"[DEBUG] FAISS query took {time.time() - t1:.2f} sec")
         if not top_chunks:
             logger.info("No matching chunks found for query: %s", query_text)
             response = "Sorry, I couldn't find relevant information in the documents."
@@ -172,9 +176,14 @@ def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]
             else:
                 logger.debug("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)
                 context = "\n\n".join(chunk for chunk, _ in top_chunks)
+                t2 = time.time()
                 prompt = build_prompt(context, query_text, history)
+                print(f"[DEBUG] Prompt building took {time.time() - t2:.2f} sec")
+                t3 = time.time()
                 response = llm.generate_answer(prompt)
+                print(f"[DEBUG] LLM response took {time.time() - t3:.2f} sec")
 
+    print(f"[DEBUG] Total time to respond: {time.time() - start:.2f} sec")
     print(f"\nAssistant: {response}")
     history.append((query_text, response))
 
@@ -186,9 +195,9 @@ def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]
 def main():
     """Main"""
 
-    llm = OllamaClient()
+    llm = get_llm_client()
     if not llm.is_running():
-        logger.error("Ollama is not running. Please start Ollama before continuing.")
+        logger.error("%s is not running or accessible.", Config.LLM_PROVIDER.capitalize())
         return
     
     intent_detector = IntentDetector()
@@ -207,7 +216,15 @@ def main():
         logger.warning("Index could not be created or loaded.")
         return
     
+    t = time.time()
+    embedding_model = embedder.get_model()
+    print(f"[DEBUG] embedder.get_model() took {time.time() - t:.2f} sec")
     history = []
+
+    print("[DEBUG] Warming up LLM...")
+    t = time.time()
+    llm.generate_answer("Hello")  # dummy warm-up call
+    print(f"[DEBUG] Warm-up took {time.time() - t:.2f} sec")
     
     try:
         print("Welcome to Armstrong Chat Assistant!")
@@ -227,7 +244,7 @@ def main():
                 logger.info("Chat history reset.")
                 continue
             
-            query_and_respond(index, query, llm, history, intent_detector)
+            query_and_respond(index, query, llm, history, intent_detector, embedding_model)
     except KeyboardInterrupt:
         logger.info("\nExiting on user interrupt")
         

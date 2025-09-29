@@ -2,7 +2,7 @@ import streamlit as st
 import time
 
 from pipeline import build_global_index, build_prompt
-from main.llm.ollama_client import OllamaClient
+from main.llm.factory import get_llm_client
 from main.intent_detector import IntentDetector
 from main.vector_store import faiss_indexer
 from main.embedder import embedder
@@ -17,7 +17,7 @@ st.caption("Ask technical questions about Armstrong products. I'll pull relevant
 # === Component Initialization ===
 @st.cache_resource
 def load_components():
-    llm = OllamaClient()
+    llm = get_llm_client()
     index = build_global_index(force=False)
     intent_detector = IntentDetector()
     return llm, index, intent_detector

@@ -69,20 +69,23 @@ conda create -n rag python=3.11
 
 
 ### 4. Install and Run Ollama (for local LLM)
-Ollama is used to run local LLMs like Mistral.
+Ollama is used to run local LLMs like Mistral (default) or lighter models like Gemma on low-memory systems.
 
 Download and install [Ollama](https://ollama.com)
 Pull and run a model (e.g., `mistral`)
 
 ```bash
 
-ollama pull mistral
-ollama run mistral
+ollama pull mistral     # For local machine with more memory
+ollama pull gemma:2b    # For low-memory systems
+ollama run mistral      # or gemma:2b depending on your setup
 ```
 
 ### 5. Configure Environment
 Create a `.env` file in the project root to customize values.
 
+- LLM provider
+- LLM Model
 
 ## Running the Project
 
@@ -122,4 +125,4 @@ By default, the system skips PDFs that already have a processed FAISS index. To 
 - [Sentence Transformers](https://www.sbert.net/) for embedding
 - [FAISS](https://github.com/facebookresearch/faiss) Facebook AI Similarity Search for vector search
 - [Ollama](https://ollama.com/) for running local LLMs like Mistral.
-- [Streamlist](https://streamlit.io/)
+- [Streamlit](https://streamlit.io/)
