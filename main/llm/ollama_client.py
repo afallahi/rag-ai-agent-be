@@ -4,6 +4,7 @@ from main.llm.base import LLMBase
 
 class OllamaClient(LLMBase):
     def __init__(self, model: str = Config.OLLAMA_MODEL, url: str = Config.OLLAMA_URL):
+        self.provider = "ollama"
         self.model = model
         self.url = url.rstrip("/")
 

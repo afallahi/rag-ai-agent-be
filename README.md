@@ -50,6 +50,53 @@ rag-project/
 └── README.md
 ```
 
+```
+rag-project/
+├── .env
+├── .gitignore
+├── README.md
+├── architecture.mmd
+├── chat_app.py
+├── faiss_index/
+│   ├── global.index
+│   └── global.metadata.npy
+├── generate_structure.py
+├── main/
+│   ├── __init__.py
+│   ├── chunker/
+│   │   └── text_chunker.py           # Step 2: Text chunking
+│   ├── config.py
+│   ├── embedder/
+│   │   └── embedder.py               # Step 3: Embedding
+│   ├── extractor/
+│   │   └── pdf_extractor.py          # Step 1: PDF extraction
+│   ├── intent_detector.py            # LLM-based intent classification
+│   ├── llm/
+│   │   ├── base.py
+│   │   ├── bedrock_client.py
+│   │   ├── factory.py
+│   │   └── ollama_client.py          # Step 6: LLM integration
+│   ├── logger_config.py
+│   ├── rag_pipeline.py
+│   └── vector_store/
+│       ├── bedrock_cohere_reranker.py
+│       ├── cohere_reranker.py
+│       ├── faiss_indexer.py          # Step 4: FAISS vector DB
+│       ├── reranker_base.py          # Step 5: Reranker
+│       └── reranker_factory.py
+├── pipeline.py
+├── project_structure.txt
+├── requirements.txt
+├── sample_pdfs/
+└── tests/
+    ├── __init__.py
+    ├── test_chunker.py
+    ├── test_embedder.py
+    ├── test_llm_ollama.py
+    ├── test_pdf_extractor.py
+    └── test_vectore_store.py
+```
+
 ## Setup
 
 ### 1. Create Conda environment
@@ -103,15 +150,16 @@ By default, the system skips PDFs that already have a processed FAISS index. To 
 
 ## Steps
 
-| Step | Description                         | Status          |
-| ---- | ----------------------------------- | --------------  | 
-| 1    | PDF Text Extraction (PyMuPDF)       | ✅ Completed    |
-| 2    | Text Chunking (LangChain)           | ✅ Completed    |
-| 3    | Embedding with SentenceTransformers | ✅ Completed    |
-| 4    | Vector Store Setup (FAISS)          | ✅ Completed    |
-| 5    | LLM Integration (Ollama)            | ✅ Completed    |
-| 6    | Full RAG Pipeline                   | ✅ Completed    |
-| 7    | Streamlit Chat UI                   | ✅ Completed    |
+| Step | Description                                     | Status       |
+| ---- | ----------------------------------------------- | -----------  |
+| 1    | PDF Text Extraction (PyMuPDF)                   | ✅ Completed |
+| 2    | Text Chunking (LangChain)                       | ✅ Completed |
+| 3    | Embedding with SentenceTransformers             | ✅ Completed |
+| 4    | Vector Store Setup (FAISS)                      | ✅ Completed |
+| 5    | Relevance Reranker Integration (Cohere/Bedrock) | ✅ Completed |
+| 6    | LLM Integration (Ollama or Bedrock)             | ✅ Completed |
+| 7    | Full RAG Pipeline                               | ✅ Completed |
+| 8    | Streamlit Chat UI                               | ✅ Completed |
 
 
 ## Running Tests

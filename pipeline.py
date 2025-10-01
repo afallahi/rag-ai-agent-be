@@ -4,6 +4,7 @@ import os
 import time
 import logging
 import argparse
+from functools import wraps
 from main.extractor import pdf_extractor
 from main.chunker import text_chunker
 from main.embedder import embedder
@@ -12,11 +13,16 @@ from main.config import Config
 from main.intent_detector import IntentDetector
 from main.logger_config import setup_logging
 from main.llm.factory import get_llm_client
+from main.vector_store.reranker_factory import CohereReranker, BedrockCohereReranker
 
 
 MAX_HISTORY_LENGTH = 10
+TOP_K_FAISS = 10
+TOP_N_RERANK = 4
+FAISS_SCORE_THRESHOLD = 0.2
 
-setup_logging()
+
+setup_logging(logging.DEBUG if Config.DEBUG else logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +33,19 @@ FAISS_INDEX_PATH = os.path.join("faiss_index", "global.index")
 
 os.makedirs(DEBUG_OUTPUT_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(FAISS_INDEX_PATH), exist_ok=True)
+
+
+def log_duration(name: str):
+    """Decorator to log the duration of a function call."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            result = func(*args, **kwargs)
+            logger.debug("%s took %.2f sec", name, time.time() - start)
+            return result
+        return wrapper
+    return decorator
 
 
 def save_debug_outputs(filename: str, chunks: list[str], embeddings: list[list[float]]):
@@ -54,38 +73,14 @@ def build_prompt(context: str, query: str, history: list[tuple[str, str]]) -> st
     return (
         "You are a professional HVAC systems consultant. "
         "Use ONLY the context below to answer the following customer question.\n"
+        "Some content in the context may come from graphs, tables, or images; interpret this information accurately.\n"
         "Answer in a concise, informative paragraph. If the context does not contain the answer, "
         "say 'The context does not provide enough information.'\n\n"
         f"{conversation}\n\nContext:\n{context}\n\nQuestion: {query}"
     )
 
 
-def detect_intent(text: str) -> str:
-    lowered = text.lower().strip()
-
-    if not lowered:
-        return "empty"
-
-    greetings = {"hi", "hello", "hey", "good morning", "good afternoon"}
-    if any(greet in lowered for greet in greetings):
-        return "greeting"
-    
-    if "thank" in lowered:
-        return "thanks"
-
-    if any(kw in lowered for kw in {"bye", "goodbye", "see you"}):
-        return "goodbye"
-
-    if any(kw in lowered for kw in {"help", "what can you do", "who are you"}):
-        return "help"
-
-    # if it's short and doesn't look like a question
-    if len(lowered) < 6 or not lowered.endswith("?"):
-        return "vague"
-
-    return "rag"
-
-
+@log_duration("Build Global FAISS Index")
 def build_global_index(force: bool = False):
     """Extract, chunk, and embed all PDFs and return a global index."""
     if os.path.exists(FAISS_INDEX_PATH) and not force:
@@ -139,51 +134,59 @@ def build_global_index(force: bool = False):
     return index
 
 
-def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]], intent_detector: IntentDetector, embedding_model):
+@log_duration("FAISS Query + Rerank")
+def retrieve_relevant_docs(index, query_text, embedding_model, reranker=None):
+    top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedding_model, k=TOP_K_FAISS)
+    if not top_chunks:
+        return []
+
+    docs = [chunk for chunk, _ in top_chunks if chunk]
+
+    if reranker:
+        reranked = reranker.rerank(query_text, docs, top_n=TOP_N_RERANK)
+        return [doc for doc, _ in reranked if doc]
+
+    max_score = max(score for _, score in top_chunks)
+    if max_score >= FAISS_SCORE_THRESHOLD:
+        return docs
+
+    return []
+
+
+@log_duration("Generate LLM Answer")
+def generate_llm_answer(llm, prompt):
+    return llm.generate_answer(prompt)
+
+
+@log_duration("Total Query Time")
+def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]], intent_detector: IntentDetector, embedding_model, reranker=None) -> None:
     """Query global index and generate a response using LLM."""
 
-    start = time.time()
+    response = "The retrieved documents do not provide enough information."
     intent = intent_detector.detect(query_text)
 
-
-    if intent == "greeting":
-        response = "Hello! I'm your Armstrong assistant. Ask me a technical question and I’ll look it up for you."
-    elif intent == "thanks":
-        response = "You're welcome! Let me know if you have more questions."
-    elif intent == "goodbye":
-        response = "Goodbye! Feel free to come back with more questions anytime."
-    elif intent == "help":
-        response = "I can help answer questions about your HVAC questions and Armstrong products. Ask me something specific!"
-    elif intent == "vague":
-        response = "Could you please rephrase your question or ask something more specific?"
-    elif intent == "empty":
-        logger.warning("Empty query. Skipping.")
-        return
+    quick_responses = {
+        "greeting": "Hello! I'm your Armstrong assistant. Ask me a technical question and I’ll look it up for you.",
+        "thanks": "You're welcome! Let me know if you have more questions.",
+        "goodbye": "Goodbye! Feel free to come back with more questions anytime.",
+        "help": "I can help answer questions about your HVAC questions and Armstrong products. Ask me something specific!",
+        "vague": "Could you please rephrase your question or ask something more specific?",
+        "empty": None
+    }
+    
+    if intent in quick_responses:
+        response = quick_responses[intent] or response
+        if intent == "empty":
+            logger.warning("Empty query. Skipping.")
+            return
     else:
-        # Use the RAG pipeline
-        t1 = time.time()
-        top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedding_model, k=4)
-        print(f"[DEBUG] FAISS query took {time.time() - t1:.2f} sec")
-        if not top_chunks:
-            logger.info("No matching chunks found for query: %s", query_text)
-            response = "Sorry, I couldn't find relevant information in the documents."
-        else:
-            max_score = max(score for _, score in top_chunks)
-            threshold = 0.2
-            if max_score < threshold:
-                logger.debug("No relevant chunks found for query: '%s'", query_text)
-                response = "I looked through the documents but didn't find anything helpful for that question."
-            else:
-                logger.debug("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)
-                context = "\n\n".join(chunk for chunk, _ in top_chunks)
-                t2 = time.time()
-                prompt = build_prompt(context, query_text, history)
-                print(f"[DEBUG] Prompt building took {time.time() - t2:.2f} sec")
-                t3 = time.time()
-                response = llm.generate_answer(prompt)
-                print(f"[DEBUG] LLM response took {time.time() - t3:.2f} sec")
+        final_docs = retrieve_relevant_docs(index, query_text, embedding_model, reranker)
+        if final_docs:
+            logger.debug("Retrieved %d chunks for query: '%s'", len(final_docs), query_text)
+            context = "\n\n".join(final_docs)
+            prompt = build_prompt(context, query_text, history)
+            response = generate_llm_answer(llm, prompt)
 
-    print(f"[DEBUG] Total time to respond: {time.time() - start:.2f} sec")
     print(f"\nAssistant: {response}")
     history.append((query_text, response))
 
@@ -192,10 +195,84 @@ def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]
         history[:] = history[-MAX_HISTORY_LENGTH:]
 
 
+def get_llm(provider: str, default_provider: str):
+    client = get_llm_client(provider=provider)
+    if client.is_running():
+        return client
+    logger.warning("LLM '%s' not running. Falling back to default '%s'.", provider, default_provider)
+    return get_llm_client(provider=default_provider)
+
+
+def get_reranker():
+    if Config.RERANK_PROVIDER == "cohere-direct":
+        return CohereReranker(api_key=Config.COHERE_API_KEY)
+    elif Config.RERANK_PROVIDER == "cohere-bedrock":
+        return BedrockCohereReranker(model_id=Config.COHERE_BEDROCK_RERANK_MODEL_ID, region=Config.BEDROCK_REGION)
+    return None
+
+
+@log_duration("Get Embedding Model")
+def get_embedding_model():
+    return embedder.get_model()
+
+
+def switch_llm(default_provider: str):
+    available_providers = ["ollama", "bedrock"]
+    logger.debug("Available LLM providers:")
+    for i, p in enumerate(available_providers, start=1):
+        print(f"  {i}. {p}")
+
+    choice = input("Select provider by number or name: ").strip().lower()
+    if choice.isdigit():
+        idx = int(choice) - 1
+        if 0 <= idx < len(available_providers):
+            choice = available_providers[idx]
+        else:
+            logger.debug("Invalid selection. No changes made.")
+            return None
+
+    if choice in available_providers:
+        return get_llm(choice, default_provider)
+    logger.debug("Invalid selection. No changes made.")
+    return None
+
+
+def chat_loop(index, llm, history, intent_detector, embedding_model, reranker, default_provider):
+    print("Welcome to Armstrong Chat Assistant!")
+    print("Chat started. Type your question below.")
+    print("Commands:\n  /reset            - start over\n  /switch           - switch LLM provider\n  /exit             - quit\n")
+
+    try:
+        while True:
+            query = input("You: ").strip()
+            if not query:
+                logger.warning("Empty query. Please enter a question.")
+                continue
+
+            if query.lower() in ("/exit", "exit", "quit"):
+                logger.info("Exiting chat session.")
+                break
+            elif query.lower() == "/reset":
+                history.clear()
+                logger.info("Chat history reset.")
+                continue
+            elif query.lower() == "/switch":
+                new_llm = switch_llm(default_provider)
+                if new_llm:
+                    llm = new_llm
+                    print(f"[INFO] Switched to LLM provider '{llm.provider}'.")
+                continue
+
+            query_and_respond(index, query, llm, history, intent_detector, embedding_model, reranker=reranker)
+    except KeyboardInterrupt:
+        logger.info("\nExiting on user interrupt")
+
+
 def main():
     """Main"""
 
-    llm = get_llm_client()
+    default_provider = Config.LLM_PROVIDER or "ollama"
+    llm = get_llm(default_provider, default_provider)
     if not llm.is_running():
         logger.error("%s is not running or accessible.", Config.LLM_PROVIDER.capitalize())
         return
@@ -216,37 +293,11 @@ def main():
         logger.warning("Index could not be created or loaded.")
         return
     
-    t = time.time()
-    embedding_model = embedder.get_model()
-    print(f"[DEBUG] embedder.get_model() took {time.time() - t:.2f} sec")
+    embedding_model = get_embedding_model()
     history = []
-
-    print("[DEBUG] Warming up LLM...")
-    t = time.time()
-    llm.generate_answer("Hello")  # dummy warm-up call
-    print(f"[DEBUG] Warm-up took {time.time() - t:.2f} sec")
     
-    try:
-        print("Welcome to Armstrong Chat Assistant!")
-        print("Chat started. Type your question below.")
-        print("Type `/reset` to start over or `/exit` to quit.\n")
-
-        while True:
-            query = input("You: ").strip()
-            if not query:
-                logger.warning("Empty query. Please enter a question.")
-                continue
-            if query.lower() in ("/exit", "exit", "quit"):
-                logger.info("Exiting chat session.")
-                break
-            if query.lower() == "/reset":
-                history.clear()
-                logger.info("Chat history reset.")
-                continue
-            
-            query_and_respond(index, query, llm, history, intent_detector, embedding_model)
-    except KeyboardInterrupt:
-        logger.info("\nExiting on user interrupt")
+    reranker = get_reranker()
+    chat_loop(index, llm, history, intent_detector, embedding_model, reranker, default_provider)
         
 
 if __name__ == "__main__":

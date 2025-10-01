@@ -17,3 +17,8 @@ class Config:
 
     BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "amazon.titan-text-lite-v1")
     BEDROCK_REGION = os.getenv("BEDROCK_REGION", "us-east-1")
+    COHERE_BEDROCK_RERANK_MODEL_ID = os.getenv("COHERE_BEDROCK_RERANK_MODEL_ID", "cohere.rerank-v3-5:0")
+
+
+    COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+    RERANK_PROVIDER = os.getenv("RERANK_PROVIDER", "none").lower()

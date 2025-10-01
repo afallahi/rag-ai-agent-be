@@ -7,6 +7,6 @@ def setup_logging(level=logging.INFO):
     )
 
     # Suppress noisy loggers
-    noisy_loggers = ["httpx", "httpcore", "ollama", "langchain_ollama"]
+    noisy_loggers = ["httpx", "httpcore", "ollama", "langchain_ollama", "boto3", "botocore", "urllib3"]
     for name in noisy_loggers:
         logging.getLogger(name).setLevel(logging.WARNING)
