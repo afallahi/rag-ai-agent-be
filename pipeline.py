@@ -5,7 +5,7 @@ import time
 import logging
 import argparse
 from functools import wraps
-from main.extractor import pdf_extractor
+from main.extractor.pdf_extractor_factory import create_pdf_extractor
 from main.chunker import text_chunker
 from main.embedder import embedder
 from main.vector_store import faiss_indexer
@@ -14,6 +14,9 @@ from main.intent_detector import IntentDetector
 from main.logger_config import setup_logging
 from main.llm.factory import get_llm_client
 from main.vector_store.reranker_factory import CohereReranker, BedrockCohereReranker
+from main.utils.s3_helper import download_pdf
+from main.utils.pdf_helper import list_pdf_files, save_debug_outputs
+from main.extractor.pdf_extractor_textract import TextractExtractor
 
 
 MAX_HISTORY_LENGTH = 10
@@ -26,12 +29,10 @@ setup_logging(logging.DEBUG if Config.DEBUG else logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-SAMPLE_DIR = Config.SAMPLE_DIR
-DEBUG_OUTPUT_DIR = Config.DEBUG_OUTPUT_DIR
 FAISS_INDEX_PATH = os.path.join("faiss_index", "global.index")
 
 
-os.makedirs(DEBUG_OUTPUT_DIR, exist_ok=True)
+os.makedirs(Config.DEBUG_OUTPUT_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(FAISS_INDEX_PATH), exist_ok=True)
 
 
@@ -46,23 +47,6 @@ def log_duration(name: str):
             return result
         return wrapper
     return decorator
-
-
-def save_debug_outputs(filename: str, chunks: list[str], embeddings: list[list[float]]):
-    """Save chunks and embeddings to debug files."""
-    # Save chunks
-    debug_path = os.path.join(DEBUG_OUTPUT_DIR, f"{filename}.md")
-    with open(debug_path, "w", encoding="utf-8") as f:
-        for i, chunk in enumerate(chunks, start=1):
-            f.write(f"\n--- Chunk {i} ---\n{chunk}\n")
-    logger.debug("Chunks saved to: %s", debug_path)
-
-    # Save embeddings
-    debug_embed_path = os.path.join(DEBUG_OUTPUT_DIR, f"{filename}.embeddings.txt")
-    with open(debug_embed_path, "w", encoding="utf-8") as f:
-        for i, emb in enumerate(embeddings, start=1):
-            f.write(f"Embedding {i}: {emb}\n")
-    logger.debug("Embeddings saved to: %s", debug_embed_path)
 
 
 def build_prompt(context: str, query: str, history: list[tuple[str, str]]) -> str:
@@ -90,16 +74,24 @@ def build_global_index(force: bool = False):
     all_chunks = []
     all_embeddings = []
 
-    pdf_files = [f for f in os.listdir(SAMPLE_DIR) if f.lower().endswith(".pdf")]
+    pdf_files = list_pdf_files()
     if not pdf_files:
         logger.warning("No PDF files found.")
         return None
 
+    extractor = create_pdf_extractor()
+
     for file in pdf_files:
-        file_path = os.path.join(SAMPLE_DIR, file)
+        if Config.USE_S3:
+            if isinstance(extractor, TextractExtractor):
+                file_path = file
+            else:
+                file_path = download_pdf(file)
+        else:
+            file_path = os.path.join(Config.SAMPLE_DIR, file)
         logger.debug("Processing: %s", file)
 
-        text = pdf_extractor.extract_text_from_pdf(file_path)
+        text = extractor.extract_text(file_path)
         if not text.strip():
             logger.warning("No text extracted from %s", file)
             continue
@@ -283,7 +275,7 @@ def main():
     parser.add_argument("--force", action="store_true", help="Force reprocessing even if FAISS index exists")
     args = parser.parse_args()
 
-    pdf_files = [f for f in os.listdir(SAMPLE_DIR) if f.lower().endswith(".pdf")]
+    pdf_files = [f for f in os.listdir(Config.SAMPLE_DIR) if f.lower().endswith(".pdf")]
     if not pdf_files:
         logger.warning("No PDF files found.")
         return

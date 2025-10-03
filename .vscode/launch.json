@@ -1,31 +1,38 @@
 {
     "version": "0.2.0",
     "configurations": [
-      {
-        "name": "Run pipeline.py",
-        "type": "debugpy",
-        "request": "launch",
-        "program": "${workspaceFolder}/pipeline.py",
-        "console": "integratedTerminal"
-      },
-      {
-        "name": "Pytest: All Tests",
-        "type": "debugpy",
-        "request": "launch",
-        "module": "pytest",
-        "args": [
-          "tests"
-        ],
-        "console": "integratedTerminal"
-      },
-      {
-      "name": "Run chat_app.py (Streamlit)",
-      "type": "python",
-      "request": "launch",
-      "module": "streamlit",
-      "args": ["run", "chat_app.py"],
-      "console": "integratedTerminal"
-    }
-  ]
+        {
+            "name": "Run pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/pipeline.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Run pipeline (force)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/pipeline.py",
+            "args": ["--force"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Pytest: All Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Run chat_app.py (Streamlit)",
+            "type": "python",
+            "request": "launch",
+            "module": "streamlit",
+            "args": ["run", "chat_app.py"],
+            "console": "integratedTerminal"
+        }
+    ]
 }
-  

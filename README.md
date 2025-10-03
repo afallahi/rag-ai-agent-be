@@ -24,34 +24,6 @@ This project builds a **Retrieval-Augmented Generation (RAG)** system that enabl
 
 ```
 rag-project/
-├── sample_pdfs/
-├── pipeline.py
-├── chat_app.py
-├── main/
-│ └── extractor.py
-│   └── pdf_extractor.py # Step 1: PDF extraction
-│ └── chunker/
-│   └── text_chunker.py # Step 2: Text chunking
-│ └── embedder/
-│   └── embedder.py # Step 3: Embedding
-│ └── vector_store/
-│   └── faiss_indexer.py # Step 4: FAISS vector DB
-│ └── llm/
-│   └── llm_ollama.py # Step 5: LLM Integration (Ollama)
-│ ├── intent_detector.py # LLM-based intent classifier
-│ └── config.py
-├── tests/
-│ └── test_pdf_extractor.py
-│ └── test_text_chunker.py
-│ └── test_embedder.py
-│ └── test_vector_store.py
-│ └── test_llm_ollama.py
-├── requirements.txt
-└── README.md
-```
-
-```
-rag-project/
 ├── .env
 ├── .gitignore
 ├── README.md
@@ -69,7 +41,10 @@ rag-project/
 │   ├── embedder/
 │   │   └── embedder.py               # Step 3: Embedding
 │   ├── extractor/
-│   │   └── pdf_extractor.py          # Step 1: PDF extraction
+|   |   |-- pdf_extractor_base.py       # Step 1: PDF extraction
+|   |   |-- pdf_extractor_factory.py
+|   |   |-- pdf_extractor_pymupdf.py
+|   |   └── pdf_extractor_textract.py   
 │   ├── intent_detector.py            # LLM-based intent classification
 │   ├── llm/
 │   │   ├── base.py
