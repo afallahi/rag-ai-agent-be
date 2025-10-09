@@ -31,3 +31,14 @@ class Config:
     S3_BUCKET = os.getenv("S3_BUCKET", "blcp-rag-pdf-files")
     S3_PREFIX = os.getenv("S3_PREFIX", "")
 
+
+
+    TOP_K_FAISS = 10
+    TOP_N_RERANK = 4
+    FAISS_SCORE_THRESHOLD = 0.2
+
+    RETRIEVER_TYPE = os.getenv("RETRIEVER_TYPE", "faiss")
+    BEDROCK_KNOWLEDGE_BASE_ID = os.getenv("BEDROCK_KNOWLEDGE_BASE_ID")
+    BEDROCK_REGION = os.getenv("BEDROCK_REGION", "us-east-1")
+
+    
