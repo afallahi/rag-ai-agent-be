@@ -14,7 +14,7 @@ class BedrockClient(LLMBase):
         model_info = self._get_model_info()
         if model_info:
             inference_types = model_info.get("inferenceTypesSupported", [])
-            if "INFERENCE_PROFILE" in inference_types:
+            if "ON_DEMAND" not in inference_types:
                 raise RuntimeError(
                     f"Model '{self.model_id}' only works with an inference profile. "
                     "Choose another model for on-demand use."
@@ -35,11 +35,12 @@ class BedrockClient(LLMBase):
         """Fetches metadata about the current model to detect inference type requirements. """
         try:
             bedrock_client  = boto3.client("bedrock", region_name=self.region)
-            response = bedrock_client.list_foundation_models(
-                byModelId=self.model_id
-            )
+            response = bedrock_client.list_foundation_models()
             summaries = response.get("modelSummaries", [])
-            return summaries[0] if summaries else None
+            for summary in summaries:
+                if summary.get("modelId") == self.model_id:
+                    return summary
+            return None
         except Exception as e:
             print(f"[WARN] Could not fetch model metadata: {e}")
             return None

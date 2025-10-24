@@ -1,6 +1,7 @@
 def build_prompt(context: str, query: str, history: list[tuple[str, str]]) -> str:
     """
     Construct the LLM prompt given context, query, and conversation history.
+    Ensures lists, tables, and structured data are preserved fully.
     """
     conversation = ""
     for i, (prev_q, prev_a) in enumerate(history, start=1):
@@ -8,9 +9,10 @@ def build_prompt(context: str, query: str, history: list[tuple[str, str]]) -> st
 
     return (
         "You are a professional HVAC systems consultant. "
-        "Use ONLY the context below to answer the following customer question.\n"
-        "Some content in the context may come from graphs, tables, or images; interpret this information accurately.\n"
-        "Answer in a concise, informative paragraph. If the context does not contain the answer, "
-        "say 'The context does not provide enough information.'\n\n"
+        "Use ONLY the information provided in the context below to answer the customer's question. "
+        "If the context includes a list, table, or structured data (for example: technical data, materials, or accessories), "
+        "list **all** items completely and accurately, without summarizing or omitting any. "
+        "If the context does not contain the answer, say 'The context does not provide enough information.' "
+        "When listing items, preserve their exact names and units from the source.\n\n"
         f"{conversation}\n\nContext:\n{context}\n\nQuestion: {query}"
     )

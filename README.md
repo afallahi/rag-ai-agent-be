@@ -24,52 +24,76 @@ This project builds a **Retrieval-Augmented Generation (RAG)** system that enabl
 
 ```
 rag-project/
-├── .env
-├── .gitignore
-├── README.md
-├── architecture.mmd
-├── chat_app.py
-├── faiss_index/
-│   ├── global.index
-│   └── global.metadata.npy
-├── generate_structure.py
-├── main/
-│   ├── __init__.py
-│   ├── chunker/
-│   │   └── text_chunker.py           # Step 2: Text chunking
-│   ├── config.py
-│   ├── embedder/
-│   │   └── embedder.py               # Step 3: Embedding
-│   ├── extractor/
-|   |   |-- pdf_extractor_base.py       # Step 1: PDF extraction
+.
+|-- .env
+|-- .gitignore
+|-- README.md
+|-- architecture.mmd
+|-- chat_app.py
+|-- faiss_index
+|   |-- global.index
+|   `-- global.metadata.npy
+|-- main
+|   |-- __init__.py
+|   |-- chunker
+|   |   `-- text_chunker.py
+|   |-- config.py
+|   |-- embedder
+|   |   `-- embedder.py
+|   |-- extractor
+|   |   |-- pdf_extractor_base.py
 |   |   |-- pdf_extractor_factory.py
 |   |   |-- pdf_extractor_pymupdf.py
-|   |   └── pdf_extractor_textract.py   
-│   ├── intent_detector.py            # LLM-based intent classification
-│   ├── llm/
-│   │   ├── base.py
-│   │   ├── bedrock_client.py
-│   │   ├── factory.py
-│   │   └── ollama_client.py          # Step 6: LLM integration
-│   ├── logger_config.py
-│   ├── rag_pipeline.py
-│   └── vector_store/
-│       ├── bedrock_cohere_reranker.py
-│       ├── cohere_reranker.py
-│       ├── faiss_indexer.py          # Step 4: FAISS vector DB
-│       ├── reranker_base.py          # Step 5: Reranker
-│       └── reranker_factory.py
-├── pipeline.py
-├── project_structure.txt
-├── requirements.txt
-├── sample_pdfs/
-└── tests/
-    ├── __init__.py
-    ├── test_chunker.py
-    ├── test_embedder.py
-    ├── test_llm_ollama.py
-    ├── test_pdf_extractor.py
-    └── test_vectore_store.py
+|   |   `-- pdf_extractor_textract.py
+|   |-- intent_detector
+|   |   |-- __init__.py
+|   |   |-- bedrock_intent_detector.py
+|   |   |-- intent_detector_base.py
+|   |   |-- intent_detector_factory.py
+|   |   `-- ollama_intent_detector.py
+|   |-- llm
+|   |   |-- base.py
+|   |   |-- bedrock_client.py
+|   |   |-- factory.py
+|   |   |-- ollama_client.py
+|   |   `-- prompt_builder.py
+|   |-- logger_config.py
+|   |-- pipeline_core.py
+|   |-- retrieval
+|   |   |-- rerankers
+|   |   |   |-- bedrock_cohere_reranker.py
+|   |   |   |-- cohere_reranker.py
+|   |   |   |-- reranker_base.py
+|   |   |   `-- reranker_factory.py
+|   |   |-- retrievers
+|   |   |   |-- bedrock_retriever.py
+|   |   |   |-- faiss_retriever.py
+|   |   |   |-- retriever_base.py
+|   |   |   `-- retriever_factory.py
+|   |   `-- vector_store
+|   |       |-- faiss_indexer.py
+|   |       `-- vector_store_manager.py
+|   `-- utils
+|       |-- normalize_tokens.py
+|       |-- pdf_helper.py
+|       |-- s3_helper.py
+|       `-- text_preprocessor.py
+|-- pipeline.py
+|-- project_structure.txt
+|-- requirements.txt
+|-- sample_pdfs
+|   |-- Circulator_E9_2_E9 2B.pdf
+|   |-- DE-Fire-Pump.pdf
+|   `-- IPS4000.pdf
+|-- tests
+|   |-- __init__.py
+|   |-- test_chunker.py
+|   |-- test_embedder.py
+|   |-- test_llm_ollama.py
+|   |-- test_pdf_extractor.py
+|   `-- test_vectore_store.py
+`-- tools
+    `-- generate_structure.py
 ```
 
 ## Setup

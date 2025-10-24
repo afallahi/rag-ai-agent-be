@@ -1,9 +1,7 @@
-# from main.vector_store.vector_store_manager import build_global_index, retrieve_relevant_docs
-# from main.embedder import embedder
-from main.intent_detector import IntentDetector
 from main.config import Config
 from main.embedder import embedder
 from main.retrieval.retrievers.retriever_factory import get_retriever
+from main.intent_detector.intent_detector_factory import create_intent_detector
 import logging
 
 
@@ -12,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class RAGPipeline:
     def __init__(self, force_index: bool = False, retriever_type="faiss"):
-        self.intent_detector = IntentDetector()
+        self.intent_detector = create_intent_detector()
         self.retriever_type = retriever_type or Config.RETRIEVER_TYPE or "faiss"
         self.embedding_model = embedder.get_model()
 
@@ -42,8 +40,11 @@ class RAGPipeline:
                 embedding_model=self.embedding_model,
                 reranker=reranker
             )
+
             if not results:
-                logger.warning("No results retrieved for query: %s", query_text)
+                print("No results retrieved!")
+                return []
+       
             return results
         except Exception as e:
             logger.error("Error during retrieval: %s", e)

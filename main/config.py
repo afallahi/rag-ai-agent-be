@@ -9,7 +9,7 @@ class Config:
     SAMPLE_DIR: str = os.getenv("SAMPLE_DIR", "sample_pdfs")
     DEBUG_OUTPUT_DIR: str = os.getenv("DEBUG_OUTPUT_DIR", "debug_chunks")
 
-    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "bedrock")
 
     OLLAMA_BASE_URL = "http://localhost:11434"
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api")
@@ -30,15 +30,19 @@ class Config:
     USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
     S3_BUCKET = os.getenv("S3_BUCKET", "blcp-rag-pdf-files")
     S3_PREFIX = os.getenv("S3_PREFIX", "")
+    CACHE_DIR = os.getenv("CACHE_DIR", ".cache")
 
 
 
-    TOP_K_FAISS = 10
-    TOP_N_RERANK = 4
+    TOP_K_FAISS = 40
+    TOP_N_RERANK = 10
     FAISS_SCORE_THRESHOLD = 0.2
 
     RETRIEVER_TYPE = os.getenv("RETRIEVER_TYPE", "faiss")
     BEDROCK_KNOWLEDGE_BASE_ID = os.getenv("BEDROCK_KNOWLEDGE_BASE_ID")
     BEDROCK_REGION = os.getenv("BEDROCK_REGION", "us-east-1")
+
+    MERGE_WINDOW_SIZE = int(os.getenv("MERGE_WINDOW_SIZE", "1"))
+    PROXIMITY_MERGE = os.getenv("PROXIMITY_MERGE", "false").lower() == "true"
 
     

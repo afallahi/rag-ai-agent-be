@@ -1,6 +1,5 @@
 import boto3
 import os
-import tempfile
 from main.config import Config
 
 def list_pdfs_in_bucket(bucket: str = Config.S3_BUCKET, prefix: str = Config.S3_PREFIX) -> list[str]:
@@ -18,8 +17,11 @@ def list_pdfs_in_bucket(bucket: str = Config.S3_BUCKET, prefix: str = Config.S3_
 def download_pdf(s3_key: str, bucket: str = Config.S3_BUCKET) -> str:
     """Download a PDF from S3 to a temporary file and return the local path."""
     s3 = boto3.client("s3")
-    _, ext = os.path.splitext(s3_key)
-    fd, tmp_path = tempfile.mkstemp(suffix=ext)
-    os.close(fd)
-    s3.download_file(bucket, s3_key, tmp_path)
-    return tmp_path
+    filename = os.path.basename(s3_key)
+    local_path = os.path.join(Config.CACHE_DIR, filename)
+
+    if not os.path.exists(local_path):
+        os.makedirs(Config.CACHE_DIR, exist_ok=True)
+        s3.download_file(bucket, s3_key, local_path)
+
+    return local_path
