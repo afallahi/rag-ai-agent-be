@@ -6,10 +6,10 @@ sentence-transformers==4.1.0
 python-dotenv
 boto3>=1.28.0
 cohere==5.18.0
-pytesseract=0.3.13
+pytesseract==0.3.13
 tqdm
-
-streamlit
+fastapi==0.120.0
+uvicorn==0.38.0
 
 
 # Note: FAISS must be installed separately:

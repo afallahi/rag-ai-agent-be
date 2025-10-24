@@ -1,6 +1,5 @@
 # RAG PDF Agent
-This project builds a **Retrieval-Augmented Generation (RAG)** system that enables users to ask technical questions based on the content of PDF documents. It extracts text from one or more PDFs, chunks and embeds it, builds a FAISS vector index, and uses a local LLM (e.g., Mistral via Ollama) to generate contextual responses.
-
+This project builds a Retrieval-Augmented Generation (RAG) system that enables users to ask technical questions based on the content of PDF documents. It extracts text from one or more PDFs, chunks and embeds it, builds a FAISS vector index, and uses a language model to generate contextual responses. The system supports both local LLMs via Ollama (e.g., Mistral) and cloud-hosted models via AWS Bedrock (e.g., Claude).
 
 
 ## Project Goals
@@ -13,78 +12,85 @@ This project builds a **Retrieval-Augmented Generation (RAG)** system that enabl
 - LLM-powered intent detection via LangChain
 - CLI-based interactive assistant
 - Streamlit-based web chat UI
+- REST API backend (FastAPI)
+- Manifest-based incremental indexing
 - Validate each stage with unit tests
 
 
 ## Architecture Diagram
 
-[Architecture Diagram](./ARCHITECTURE.mmd)
+[Architecture Diagram](shared\architecture.mmd)
 
 ## Project Structure
 
 ```
-rag-project/
 .
-|-- .env
 |-- .gitignore
 |-- README.md
-|-- architecture.mmd
-|-- chat_app.py
-|-- faiss_index
-|   |-- global.index
-|   `-- global.metadata.npy
-|-- main
-|   |-- __init__.py
-|   |-- chunker
-|   |   `-- text_chunker.py
-|   |-- config.py
-|   |-- embedder
-|   |   `-- embedder.py
-|   |-- extractor
-|   |   |-- pdf_extractor_base.py
-|   |   |-- pdf_extractor_factory.py
-|   |   |-- pdf_extractor_pymupdf.py
-|   |   `-- pdf_extractor_textract.py
-|   |-- intent_detector
-|   |   |-- __init__.py
-|   |   |-- bedrock_intent_detector.py
-|   |   |-- intent_detector_base.py
-|   |   |-- intent_detector_factory.py
-|   |   `-- ollama_intent_detector.py
-|   |-- llm
-|   |   |-- base.py
-|   |   |-- bedrock_client.py
-|   |   |-- factory.py
-|   |   |-- ollama_client.py
-|   |   `-- prompt_builder.py
-|   |-- logger_config.py
-|   |-- pipeline_core.py
-|   |-- retrieval
-|   |   |-- rerankers
-|   |   |   |-- bedrock_cohere_reranker.py
-|   |   |   |-- cohere_reranker.py
-|   |   |   |-- reranker_base.py
-|   |   |   `-- reranker_factory.py
-|   |   |-- retrievers
-|   |   |   |-- bedrock_retriever.py
-|   |   |   |-- faiss_retriever.py
-|   |   |   |-- retriever_base.py
-|   |   |   `-- retriever_factory.py
-|   |   `-- vector_store
-|   |       |-- faiss_indexer.py
-|   |       `-- vector_store_manager.py
-|   `-- utils
-|       |-- normalize_tokens.py
-|       |-- pdf_helper.py
-|       |-- s3_helper.py
-|       `-- text_preprocessor.py
-|-- pipeline.py
+|-- backend
+|   |-- .env
+|   |-- api
+|   |   `-- app.py
+|   |-- main
+|   |   |-- chunker
+|   |   |   `-- text_chunker.py
+|   |   |-- config.py
+|   |   |-- embedder
+|   |   |   `-- embedder.py
+|   |   |-- extractor                       # PDF extractors
+|   |   |   |-- chart_ocr_extractor.py
+|   |   |   |-- pdf_extractor_base.py
+|   |   |   |-- pdf_extractor_factory.py
+|   |   |   |-- pdf_extractor_hybrid.py
+|   |   |   |-- pdf_extractor_pymupdf.py
+|   |   |   `-- pdf_extractor_textract.py
+|   |   |-- intent_detector
+|   |   |   |-- bedrock_intent_detector.py
+|   |   |   |-- intent_detector_base.py
+|   |   |   |-- intent_detector_factory.py
+|   |   |   `-- ollama_intent_detector.py
+|   |   |-- llm
+|   |   |   |-- base.py
+|   |   |   |-- bedrock_client.py
+|   |   |   |-- factory.py
+|   |   |   |-- ollama_client.py
+|   |   |   `-- prompt_builder.py
+|   |   |-- logger_config.py
+|   |   |-- pipeline
+|   |   |   `-- file_processor.py
+|   |   |-- pipeline_core.py        # RAGPipeline entry point
+|   |   |-- retrieval               # Vecore Store, retrievers, rerankers
+|   |   |   |-- rerankers
+|   |   |   |   |-- bedrock_cohere_reranker.py
+|   |   |   |   |-- cohere_reranker.py
+|   |   |   |   |-- merge_utils.py
+|   |   |   |   |-- reranker_base.py
+|   |   |   |   `-- reranker_factory.py
+|   |   |   |-- retrievers
+|   |   |   |   |-- bedrock_retriever.py
+|   |   |   |   |-- faiss_retriever.py
+|   |   |   |   |-- retriever_base.py
+|   |   |   |   `-- retriever_factory.py
+|   |   |   `-- vector_store
+|   |   |       |-- faiss_indexer.py
+|   |   |       |-- index_builder.py
+|   |   |       `-- vector_store_manager.py
+|   |   `-- utils
+|   |       |-- manifest_helper.py
+|   |       |-- normalize_tokens.py
+|   |       |-- pdf_helper.py
+|   |       |-- s3_helper.py
+|   |       `-- text_preprocessor.py
+|   |-- pipeline.py
+|   `-- requirements.txt
+|-- frontend
+|   |-- chat_app.py
+|   `-- requirements.txt
 |-- project_structure.txt
-|-- requirements.txt
 |-- sample_pdfs
-|   |-- Circulator_E9_2_E9 2B.pdf
-|   |-- DE-Fire-Pump.pdf
-|   `-- IPS4000.pdf
+|   `-- Circulator_E9_2_E9 2B.pdf
+|-- shared
+|   `-- architecture.mmd
 |-- tests
 |   |-- __init__.py
 |   |-- test_chunker.py
@@ -111,10 +117,10 @@ conda create -n rag python=3.11
 
 ### 3. Install requirements
 
-`pip install -r requirements.txt`
+`pip install -r backend/requirements.txt`
 
 
-### 4. Install and Run Ollama (for local LLM)
+### 4. Install and Run Ollama (for local LLM Only)
 Ollama is used to run local LLMs like Mistral (default) or lighter models like Gemma on low-memory systems.
 
 Download and install [Ollama](https://ollama.com)
@@ -128,37 +134,46 @@ ollama run mistral      # or gemma:2b depending on your setup
 ```
 
 ### 5. Configure Environment
-Create a `.env` file in the project root to customize values.
+Create a `.env` file in the project root to customize:
 
 - LLM provider
 - LLM Model
+- Reranker provider
+- FAISS indexing options
 
 ## Running the Project
 
-`python pipeline.py`
+### CLI Mode
+
+`python backend/pipeline.py`
 
 ### Force Reprocessing
 By default, the system skips PDFs that already have a processed FAISS index. To force reprocessing of all PDFs:
-`python pipeline.py --force`
+`python backend/pipeline.py --force`
+
+### Rebuild Index
+TBD
 
 ### Stop Ollama
 `Stop-Process -Name ollama -Force`
 
 ## Running the Chat UI (Streamlit)
-`streamlit run chat_app.py`
+`streamlit run frontend/chat_app.py`
 
-## Steps
+## Pipeline Steps
 
 | Step | Description                                     | Status       |
 | ---- | ----------------------------------------------- | -----------  |
-| 1    | PDF Text Extraction (PyMuPDF)                   | ✅ Completed |
+| 1    | PDF Text Extraction (PyMuPDF or Textract)       | ✅ Completed |
 | 2    | Text Chunking (LangChain)                       | ✅ Completed |
 | 3    | Embedding with SentenceTransformers             | ✅ Completed |
 | 4    | Vector Store Setup (FAISS)                      | ✅ Completed |
-| 5    | Relevance Reranker Integration (Cohere/Bedrock) | ✅ Completed |
-| 6    | LLM Integration (Ollama or Bedrock)             | ✅ Completed |
-| 7    | Full RAG Pipeline                               | ✅ Completed |
-| 8    | Streamlit Chat UI                               | ✅ Completed |
+| 5    | Manifest-Based Incremental Indexing             | ✅ Completed |
+| 6    | Relevance Reranker Integration (Cohere/Bedrock) | ✅ Completed |
+| 7    | LLM Integration (Ollama or Bedrock)             | ✅ Completed |
+| 8    | Full RAG Pipeline                               | ✅ Completed |
+| 9    | Streamlit Chat UI                               | ✅ Completed |
+| 10   | REST API Backend (FastAPI)                      | In Progress  |
 
 
 ## Running Tests
@@ -172,4 +187,6 @@ By default, the system skips PDFs that already have a processed FAISS index. To 
 - [Sentence Transformers](https://www.sbert.net/) for embedding
 - [FAISS](https://github.com/facebookresearch/faiss) Facebook AI Similarity Search for vector search
 - [Ollama](https://ollama.com/) for running local LLMs like Mistral.
+- AWS Bedrock
 - [Streamlit](https://streamlit.io/)
+- FastAPI for backend API
