@@ -1,12 +1,10 @@
 import logging
-import os
+import tempfile
+from typing import Union
 from .pdf_extractor_base import PDFExtractorBase
 from .pdf_extractor_pymupdf import PyMuPDFExtractor
 from .pdf_extractor_textract import TextractExtractor
 from .chart_ocr_extractor import ChartOCRExtractor
-from main.config import Config
-from main.utils.s3_helper import download_pdf
-
 
 logger = logging.getLogger(__name__)
 
@@ -17,20 +15,22 @@ class HybridPDFExtractor(PDFExtractorBase):
         self.table_extractor = TextractExtractor(region=region)
         self.chart_ocr_extractor = ChartOCRExtractor()
 
-    def extract_text(self, file_path_or_key: str) -> str:
-        if Config.USE_S3:
-            s3_key = file_path_or_key
-            local_path = download_pdf(s3_key)
+    def extract_text(self, source: Union[str, bytes]) -> str:
+        if isinstance(source, bytes):
+            text = self.text_extractor.extract_text(source)
+            tables = self.table_extractor.extract_text(source)
+
+            # Fallback: write bytes to temp file for chart OCR
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:
+                tmp.write(source)
+                tmp.flush()
+                chart_labels = self.chart_ocr_extractor.extract_chart_labels(tmp.name)
         else:
-            local_path = file_path_or_key
-            s3_key = None
-        
-        text = self.text_extractor.extract_text(local_path)
-        tables = self.table_extractor.extract_text(s3_key or local_path)
-        chart_labels = self.chart_ocr_extractor.extract_chart_labels(local_path)
+            text = self.text_extractor.extract_text(source)
+            tables = self.table_extractor.extract_text(source)
+            chart_labels = self.chart_ocr_extractor.extract_chart_labels(source)
 
         return self._merge_content(text, tables, chart_labels)
-
 
     def _merge_content(self, text: str, tables: str, chart_labels: list[str]) -> str:
         sections = [
@@ -39,4 +39,3 @@ class HybridPDFExtractor(PDFExtractorBase):
             "=== Chart Labels ===\n" + "\n".join(chart_labels)
         ]
         return "\n\n".join([s for s in sections if s])
-    

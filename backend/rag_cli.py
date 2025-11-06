@@ -62,7 +62,7 @@ def main():
     parser.add_argument("--force", action="store_true", help="Force reprocessing even if FAISS index exists")
     args = parser.parse_args()
     
-    rag_pipeline = RAGPipeline(force_index=args.force)
+    rag_pipeline = RAGPipeline(force_index=args.force, cache_mode=Config.CACHE_MODE)
     if not rag_pipeline.refresh_index():
         logger.warning("No PDFs found to build the index.")
         return

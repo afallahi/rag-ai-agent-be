@@ -1,13 +1,13 @@
 import boto3
+import os
 import logging
 import time
+from typing import Union
 from collections import defaultdict
 from main.config import Config
 from .pdf_extractor_base import PDFExtractorBase
 
-
 logger = logging.getLogger(__name__)
-
 
 class TextractExtractor(PDFExtractorBase):
     """Extract text from PDFs using AWS Textract."""
@@ -17,16 +17,22 @@ class TextractExtractor(PDFExtractorBase):
         self.poll_interval = poll_interval
         self.timeout = timeout
 
-
-    def extract_text(self, file_path_or_key: str) -> str:
+    def extract_text(self, source: Union[str, bytes]) -> str:
         try:
-            if Config.USE_S3:
+            if Config.USE_S3 and isinstance(source, str):
+                # --- Resolve S3 key from local cache path if needed ---
+                if source.startswith(Config.CACHE_DIR):
+                    relative_path = os.path.relpath(source, Config.CACHE_DIR)
+                    s3_key = relative_path.replace("\\", "/")
+                else:
+                    s3_key = source  # assume it's already an S3 key
+
                 # --- Async mode for S3 with TABLES and FORMS ---
                 response = self.client.start_document_analysis(
                     DocumentLocation={
                         "S3Object": {
                             "Bucket": Config.S3_BUCKET,
-                            "Name": file_path_or_key,
+                            "Name": s3_key,
                         }
                     },
                     FeatureTypes=["TABLES", "FORMS"]
@@ -63,13 +69,17 @@ class TextractExtractor(PDFExtractorBase):
                         break
 
             else:
-                # --- Sync mode for local files ---
-                with open(file_path_or_key, "rb") as f:
-                    response = self.client.analyze_document(
-                        Document={"Bytes": f.read()},
-                        FeatureTypes=["TABLES", "FORMS"]
-                    )
+                # --- Sync mode for local file or in-memory bytes ---
+                if isinstance(source, bytes):
+                    pdf_bytes = source
+                else:
+                    with open(source, "rb") as f:
+                        pdf_bytes = f.read()
 
+                response = self.client.analyze_document(
+                    Document={"Bytes": pdf_bytes},
+                    FeatureTypes=["TABLES", "FORMS"]
+                )
                 blocks = response.get("Blocks", [])
 
             # Extract both LINE and CELL text
@@ -82,7 +92,6 @@ class TextractExtractor(PDFExtractorBase):
 
         except Exception as e:
             raise RuntimeError(f"Textract failed to extract text: {e}") from e
-
 
 
     def reconstruct_lines_from_words(self, blocks):
@@ -98,16 +107,14 @@ class TextractExtractor(PDFExtractorBase):
 
         reconstructed = []
         for page, words in lines_by_page.items():
-            # Sort by vertical position (Top), then horizontal (Left)
             words.sort()
             current_line = []
             last_top = None
 
             for top, left, text in words:
-                if last_top is None or abs(top - last_top) < 0.005:  # same line
+                if last_top is None or abs(top - last_top) < 0.005:
                     current_line.append((left, text))
                 else:
-                    # New line
                     current_line.sort()
                     reconstructed.append(" ".join(t for _, t in current_line))
                     current_line = [(left, text)]

@@ -1,0 +1,31 @@
+flowchart TD
+
+    A[Start Indexing] --> B{Force Flag Enabled?}
+
+    B -- Yes --> C[Download All PDFs from S3]
+    C --> D[Process Each File]
+    D --> E[Extract Text + Chunk + Embed]
+    E --> F[Update Manifest with Hash, Chunk Count, etc.]
+    F --> G[Build FAISS Index]
+    G --> H[Save Index to Disk]
+    H --> I[Done]
+
+    B -- No --> J[Load Manifest]
+    J --> K[List PDFs from S3]
+    K --> L[For Each PDF: Check Manifest Entry]
+
+    L --> M{Manifest Entry Exists?}
+    M -- No --> N[Download + Index File]
+    M -- Yes --> O[Compare Hash with Cached File]
+
+    O --> P{Hash Changed?}
+    P -- Yes --> N
+    P -- No --> Q[Skip File]
+
+    N --> R[Process File → Chunk + Embed]
+    R --> S[Update Manifest]
+    S --> T[Add to FAISS Index]
+
+    Q --> T
+    T --> U[Save Updated Index]
+    U --> I

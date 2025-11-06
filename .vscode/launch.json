@@ -2,18 +2,35 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Run FastAPI (Uvicorn)",
+            "type": "python",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "api.app:app",
+                "--reload",
+                "--host", "127.0.0.1",
+                "--port", "8000"
+            ],
+            "cwd": "${workspaceFolder}/backend",
+            "console": "integratedTerminal"
+        }
+        ,
+        {
             "name": "Run pipeline",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/pipeline.py",
+            "program": "${workspaceFolder}/backend/rag_cli.py",
+            "cwd": "${workspaceFolder}/backend",
             "console": "integratedTerminal"
         },
         {
             "name": "Run pipeline (force)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/pipeline.py",
+            "program": "${workspaceFolder}/backend/rag_cli.py",
             "args": ["--force"],
+            "cwd": "${workspaceFolder}/backend",
             "console": "integratedTerminal"
         },
         {

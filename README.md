@@ -1,5 +1,5 @@
 # RAG PDF Agent
-This project builds a Retrieval-Augmented Generation (RAG) system that enables users to ask technical questions based on the content of PDF documents. It extracts text from one or more PDFs, chunks and embeds it, builds a FAISS vector index, and uses a language model to generate contextual responses. The system supports both local LLMs via Ollama (e.g., Mistral) and cloud-hosted models via AWS Bedrock (e.g., Claude).
+This project builds a Retrieval-Augmented Generation (RAG) system that enables users to ask questions based on the content of PDF documents. It extracts text from one or more PDFs, chunks and embeds it, builds a FAISS vector index, and uses a language model to generate contextual responses. The system supports both local LLMs via Ollama (e.g., Mistral) and cloud-hosted models via AWS Bedrock (e.g., Claude).
 
 
 ## Project Goals
@@ -8,13 +8,27 @@ This project builds a Retrieval-Augmented Generation (RAG) system that enables u
 - Chunk text using LangChain
 - Generate embeddings using Sentence Transformers
 - Store and query a unified FAISS vector database
-- Use a local LLM (Ollama + Mistral) to answer user questions
+- Use a local LLM (Ollama + Mistral) or AWS Bedrock to answer user questions
 - LLM-powered intent detection via LangChain
 - CLI-based interactive assistant
 - Streamlit-based web chat UI
 - REST API backend (FastAPI)
-- Manifest-based incremental indexing
+- Manifest-based incremental indexing with hash and metadata
 - Validate each stage with unit tests
+
+
+## Manifest Features
+
+Each indexed PDF is tracked in `index_manifest.json` with:
+
+- `hash`: SHA256 of the file
+- `indexed_at`: UTC timestamp of indexing
+- `chunk_count`: number of chunks generated
+- `embedding_count`: number of embeddings
+- `size`: file size in bytes
+- `source`: e.g. `"s3"`
+
+This enables incremental indexing, integrity checks, and auditability.
 
 
 ## Architecture Diagram
@@ -28,16 +42,23 @@ This project builds a Retrieval-Augmented Generation (RAG) system that enables u
 |-- .gitignore
 |-- README.md
 |-- backend
+|   |-- .cache
+|   |   |-- Circulator_E7 2_E7 2B.pdf
+|   |   `-- index_manifest.json
 |   |-- .env
 |   |-- api
 |   |   `-- app.py
+|   |-- faiss_index
+|   |   |-- global.index
+|   |   `-- global.metadata.npy
 |   |-- main
+|   |   |-- __init__.py
 |   |   |-- chunker
 |   |   |   `-- text_chunker.py
 |   |   |-- config.py
 |   |   |-- embedder
 |   |   |   `-- embedder.py
-|   |   |-- extractor                       # PDF extractors
+|   |   |-- extractor
 |   |   |   |-- chart_ocr_extractor.py
 |   |   |   |-- pdf_extractor_base.py
 |   |   |   |-- pdf_extractor_factory.py
@@ -45,6 +66,7 @@ This project builds a Retrieval-Augmented Generation (RAG) system that enables u
 |   |   |   |-- pdf_extractor_pymupdf.py
 |   |   |   `-- pdf_extractor_textract.py
 |   |   |-- intent_detector
+|   |   |   |-- __init__.py
 |   |   |   |-- bedrock_intent_detector.py
 |   |   |   |-- intent_detector_base.py
 |   |   |   |-- intent_detector_factory.py
@@ -58,8 +80,8 @@ This project builds a Retrieval-Augmented Generation (RAG) system that enables u
 |   |   |-- logger_config.py
 |   |   |-- pipeline
 |   |   |   `-- file_processor.py
-|   |   |-- pipeline_core.py        # RAGPipeline entry point
-|   |   |-- retrieval               # Vecore Store, retrievers, rerankers
+|   |   |-- pipeline_core.py
+|   |   |-- retrieval
 |   |   |   |-- rerankers
 |   |   |   |   |-- bedrock_cohere_reranker.py
 |   |   |   |   |-- cohere_reranker.py
@@ -81,14 +103,14 @@ This project builds a Retrieval-Augmented Generation (RAG) system that enables u
 |   |       |-- pdf_helper.py
 |   |       |-- s3_helper.py
 |   |       `-- text_preprocessor.py
-|   |-- pipeline.py
-|   `-- requirements.txt
+|   |-- rag_cli.py
+|   |-- requirements.txt
+|   `-- sample_pdfs
+|       `-- Circulator_E9_2_E9 2B.pdf
 |-- frontend
 |   |-- chat_app.py
 |   `-- requirements.txt
 |-- project_structure.txt
-|-- sample_pdfs
-|   `-- Circulator_E9_2_E9 2B.pdf
 |-- shared
 |   `-- architecture.mmd
 |-- tests
@@ -136,10 +158,11 @@ ollama run mistral      # or gemma:2b depending on your setup
 ### 5. Configure Environment
 Create a `.env` file in the project root to customize:
 
-- LLM provider
-- LLM Model
+- LLM provider and model
 - Reranker provider
 - FAISS indexing options
+- S3 bucket and prefix
+
 
 ## Running the Project
 
@@ -151,14 +174,17 @@ Create a `.env` file in the project root to customize:
 By default, the system skips PDFs that already have a processed FAISS index. To force reprocessing of all PDFs:
 `python backend/pipeline.py --force`
 
-### Rebuild Index
-TBD
 
 ### Stop Ollama
 `Stop-Process -Name ollama -Force`
 
 ## Running the Chat UI (Streamlit)
 `streamlit run frontend/chat_app.py`
+
+
+## REST API (FastAPI)
+`uvicorn backend.api.app:app --reload`
+
 
 ## Pipeline Steps
 
@@ -173,7 +199,7 @@ TBD
 | 7    | LLM Integration (Ollama or Bedrock)             | ✅ Completed |
 | 8    | Full RAG Pipeline                               | ✅ Completed |
 | 9    | Streamlit Chat UI                               | ✅ Completed |
-| 10   | REST API Backend (FastAPI)                      | In Progress  |
+| 10   | REST API Backend (FastAPI)                      | ✅ Completed |
 
 
 ## Running Tests
@@ -187,6 +213,6 @@ TBD
 - [Sentence Transformers](https://www.sbert.net/) for embedding
 - [FAISS](https://github.com/facebookresearch/faiss) Facebook AI Similarity Search for vector search
 - [Ollama](https://ollama.com/) for running local LLMs like Mistral.
-- AWS Bedrock
+- AWS Bedrock for cloud-hosted LLMs and rerankers
 - [Streamlit](https://streamlit.io/)
-- FastAPI for backend API
+- FastAPI for REST API

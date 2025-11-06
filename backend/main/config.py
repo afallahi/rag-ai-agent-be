@@ -8,6 +8,7 @@ class Config:
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
     SAMPLE_DIR: str = os.getenv("SAMPLE_DIR", "sample_pdfs")
     DEBUG_OUTPUT_DIR: str = os.getenv("DEBUG_OUTPUT_DIR", "debug_chunks")
+    CACHE_MODE = os.getenv("CACHE_MODE", "full").lower()
 
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "bedrock")
 

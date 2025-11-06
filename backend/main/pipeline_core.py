@@ -6,17 +6,18 @@ from main.intent_detector.intent_detector_factory import create_intent_detector
 from main.llm.prompt_builder import build_prompt
 from main.retrieval.rerankers.reranker_factory import CohereReranker, BedrockCohereReranker
 from main.llm.factory import get_llm_client
-
+from main.retrieval.vector_store.index_builder import build_global_index
 
 logger = logging.getLogger(__name__)
 
 
 class RAGPipeline:
     """Retrieval-Augmented Generation Pipeline Class"""
-    def __init__(self, force_index: bool = False, retriever_type="faiss"):
+    def __init__(self, force_index: bool = False, cache_mode: str = None, retriever_type="faiss"):
         self.intent_detector = create_intent_detector()
         self.retriever_type = retriever_type or Config.RETRIEVER_TYPE or "faiss"
         self.embedding_model = embedder.get_model()
+        self.cache_mode = cache_mode or Config.CACHE_MODE
 
         self.top_k_faiss = Config.TOP_K_FAISS
         self.top_n_rerank = Config.TOP_N_RERANK
@@ -24,6 +25,9 @@ class RAGPipeline:
         
         logger.info(f"Initializing RAGPipeline with retriever: {self.retriever_type.upper()}")
         self.retriever = get_retriever(retriever_type, force=force_index)
+
+        # Build or refresh index if needed
+        self.index = build_global_index(force=force_index, cache_mode=self.cache_mode)
 
 
     def refresh_index(self):

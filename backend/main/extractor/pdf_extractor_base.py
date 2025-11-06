@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import Union
 
 class PDFExtractorBase(ABC):
-    """Abstract base class for PDF extractors."""
-
     @abstractmethod
-    def extract_text(self, file_path: str) -> str:
+    def extract_text(self, source: Union[str, bytes]) -> str:
+        """Extract text from a file path or raw PDF bytes"""
         pass

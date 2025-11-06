@@ -1,23 +1,35 @@
 graph TD
+
     subgraph User Interaction
-        A[Employee: Tech, Sales, Support] -->|Asks Question| B[Chat Interface - CLI/UI]
+        A[Employee: Tech, Sales, Support] -->|Asks Question| B[Chat Interface - CLI / Chat UI]
+    end
+
+    subgraph API Layer
+        B --> Z[FastAPI Endpoint /query]
     end
 
     subgraph Backend Pipeline
-        B --> C[Intent Detector]
+        Z --> C[Intent Detector - Ollama / Bedrock]
         C --> D[Retriever - FAISS Vector Search]
         D --> E[Top-K Relevant Chunks]
         E --> F[LLM Prompt Builder]
-        F --> G[LLM - via Ollama]
+        F --> G[LLM - via Ollama / Bedrock]
         G --> H[Response to User]
     end
 
     subgraph Ingestion Phase
-        I[PDF Documents] --> J[PDF Parser - PyMuPDF]
-        J --> K[Text Chunker - LangChain]
-        K --> L[Embedding Generator - SentenceTransformers]
-        L --> M[FAISS Index Builder]
-        M --> D
+        I[S3 Bucket: PDF Documents] --> J[Download + Structured Cache]
+        J --> K[PDF Parser - PyMuPDF / Textract]
+        K --> L[Text Chunker - LangChain]
+        L --> M[Embedding Generator - SentenceTransformers]
+        M --> N[FAISS Index Builder]
+        N --> D
+        J --> O[Manifest Tracker]
+        O -->|Stores| P[index_manifest.json]
+    end
+
+    subgraph Manifest Metadata
+        P --> Q[Hash, Timestamp, Chunk Count, Embedding Count, Size]
     end
 
     H --> B
