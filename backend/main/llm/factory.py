@@ -1,11 +1,16 @@
-from main.config import Config
+from main.llm.bedrock_client import BedrockClient
+from main.llm.ollama_client import OllamaClient
+
+
+LLM_CLIENTS = {
+    "bedrock": BedrockClient,
+    "ollama": OllamaClient,
+}
 
 def get_llm_client(provider: str | None = None):
     """Factory function to get the appropriate LLM client based on configuration."""
-    provider = provider or Config.LLM_PROVIDER
-    if provider == "bedrock":
-        from main.llm.bedrock_client import BedrockClient as LLMClient
-    else:
-        from main.llm.ollama_client import OllamaClient as LLMClient
+    client_cls = LLM_CLIENTS.get(provider)
+    if not client_cls:
+        raise ValueError(f"Unsupported LLM provider: {provider}")
 
-    return LLMClient()
+    return client_cls()

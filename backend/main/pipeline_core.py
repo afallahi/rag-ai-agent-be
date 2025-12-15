@@ -87,18 +87,16 @@ def generate_response(rag_pipeline: RAGPipeline, query_text: str, llm, history: 
     return llm.generate_answer(prompt)
 
 
-def get_reranker():
-    if Config.RERANK_PROVIDER == "cohere-direct":
+def get_reranker(provider: str | None = None):
+    if provider == "cohere-direct":
         return CohereReranker(api_key=Config.COHERE_API_KEY)
-    elif Config.RERANK_PROVIDER == "cohere-bedrock":
+    elif provider == "cohere-bedrock":
         return BedrockCohereReranker(model_id=Config.COHERE_BEDROCK_RERANK_MODEL_ID, region=Config.BEDROCK_REGION)
     return None
 
 
-def get_llm():
-    provider = Config.LLM_PROVIDER
+def get_llm(provider: str | None = None):
     client = get_llm_client(provider=provider)
-    if client.is_running():
-        return client
-    logger.warning("LLM '%s' not running.", provider)
-    return get_llm_client(provider=provider)
+    if not client.is_running():
+        logger.warning("LLM '%s' not running.", provider)
+    return client

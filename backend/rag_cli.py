@@ -53,7 +53,7 @@ def chat_loop(rag_pipeline: RAGPipeline, llm, history, reranker):
 def main():
     """Main"""
 
-    llm = get_llm()
+    llm = get_llm(Config.LLM_PROVIDER)
     if not llm.is_running():
         logger.error("%s is not running or accessible.", Config.LLM_PROVIDER.capitalize())
         return
